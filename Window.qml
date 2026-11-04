@@ -92,11 +92,10 @@ Item {
   FloatingWindow {
     id: win
     title: "Omaven — Aven Task Manager"
-    appId: "omaven"
     color: Commons.Color.background
     implicitWidth: 1040
     implicitHeight: 700
-    minimumSize: Qt.size(760, 500)
+    minimumSize: Qt.size(760, 520)
 
     onVisibleChanged: {
       if (!visible && !root.closingFromHost && root.shell && typeof root.shell.hide === "function") {
