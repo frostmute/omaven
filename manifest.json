@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "omaven",
+  "name": "Omaven",
+  "version": "1.0.0",
+  "author": "frostmute",
+  "license": "MIT",
+  "description": "Access, inspect, and manipulate your local and synced Aven tasks directly from the Omarchy bar popup and floating/tiling Hyprland desktop window.",
+  "kinds": [
+    "bar-widget",
+    "panel"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "barWidget": "BarWidget.qml",
+    "panel": "Window.qml"
+  },
+  "barWidget": {
+    "displayName": "Omaven",
+    "description": "Aven task manager in your status bar and desktop window",
+    "category": "Productivity",
+    "defaultSection": "right",
+    "allowMultiple": false
+  }
+}

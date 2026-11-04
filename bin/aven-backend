@@ -1,0 +1,260 @@
+#!/usr/bin/env python3
+import sys
+import json
+import subprocess
+import shutil
+import os
+
+AVEN_BIN = shutil.which("aven") or os.path.expanduser("~/.local/bin/aven")
+
+def run_cmd(args, check=False):
+    try:
+        res = subprocess.run(args, capture_output=True, text=True, timeout=15)
+        return res.returncode, res.stdout.strip(), res.stderr.strip()
+    except Exception as e:
+        return 1, "", str(e)
+
+def cmd_list():
+    code, out, err = run_cmd([AVEN_BIN, "list", "--json"])
+    if code != 0:
+        print(json.dumps({"ok": False, "error": err or "Failed to list tasks"}))
+        return
+
+    try:
+        tasks = json.loads(out)
+    except Exception as e:
+        print(json.dumps({"ok": False, "error": f"Invalid JSON: {e}"}))
+        return
+
+    # Fetch projects
+    p_code, p_out, _ = run_cmd([AVEN_BIN, "project", "list"])
+    projects = {}
+    if p_code == 0:
+        for line in p_out.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            # format: habitex prefix=HBT name="HABITEX"
+            parts = line.split(" ", 1)
+            key = parts[0]
+            name = key
+            prefix = ""
+            if len(parts) > 1:
+                sub = parts[1]
+                for chunk in sub.split(" "):
+                    if chunk.startswith("prefix="):
+                        prefix = chunk.split("=", 1)[1]
+                    elif chunk.startswith("name="):
+                        name = chunk.split("=", 1)[1].strip('"')
+            projects[key] = {"key": key, "name": name, "prefix": prefix, "count": 0}
+
+    # Counts
+    counts = {
+        "total": len(tasks),
+        "open": 0,
+        "active": 0,
+        "todo": 0,
+        "backlog": 0,
+        "done": 0,
+        "canceled": 0,
+        "urgent": 0,
+        "high": 0,
+    }
+
+    for t in tasks:
+        status = t.get("status", "")
+        deleted = t.get("deleted", False)
+        priority = t.get("priority", "none")
+        proj = t.get("project", "")
+
+        if proj in projects:
+            if not deleted and status in ("inbox", "backlog", "todo", "active"):
+                projects[proj]["count"] += 1
+        elif proj:
+            projects[proj] = {"key": proj, "name": proj, "prefix": "", "count": 1}
+
+        if not deleted:
+            if status in ("inbox", "backlog", "todo", "active"):
+                counts["open"] += 1
+            if status in counts:
+                counts[status] += 1
+            if priority == "urgent" and status in ("inbox", "backlog", "todo", "active"):
+                counts["urgent"] += 1
+            elif priority == "high" and status in ("inbox", "backlog", "todo", "active"):
+                counts["high"] += 1
+
+    # Fetch sync status (quick, non-blocking check)
+    sync_info = {"state": "ready", "server": "", "devices": 0, "pending": False}
+    s_code, s_out, _ = run_cmd([AVEN_BIN, "sync", "status", "--json"])
+    if s_code == 0 and s_out:
+        try:
+            s_data = json.loads(s_out)
+            sync_info["state"] = s_data.get("state", "ready")
+            sync_info["server"] = s_data.get("server", "")
+            sync_info["devices"] = s_data.get("devices", 0)
+            sync_info["pending"] = s_data.get("local_changes_pending", False)
+            sync_info["conflicts"] = s_data.get("conflicts", 0)
+        except Exception:
+            pass
+
+    print(json.dumps({
+        "ok": True,
+        "tasks": tasks,
+        "counts": counts,
+        "projects": list(projects.values()),
+        "sync": sync_info
+    }))
+
+def cmd_add():
+    # Usage: aven-backend add <title> [options]
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("title")
+    parser.add_argument("--project", default="")
+    parser.add_argument("--status", default="todo")
+    parser.add_argument("--priority", default="none")
+    parser.add_argument("--description", default="")
+
+    args = parser.parse_args(sys.argv[2:])
+    cmd = [AVEN_BIN, "add", args.title]
+    if args.project:
+        cmd.extend(["--project", args.project])
+    if args.status:
+        cmd.extend(["--status", args.status])
+    if args.priority and args.priority != "none":
+        cmd.extend(["--priority", args.priority])
+    if args.description:
+        cmd.extend(["--description", args.description])
+
+    code, out, err = run_cmd(cmd)
+    if code == 0:
+        print(json.dumps({"ok": True, "message": out}))
+    else:
+        print(json.dumps({"ok": False, "error": err or out}))
+
+def cmd_edit():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("ref")
+    parser.add_argument("--status", default="")
+    parser.add_argument("--priority", default="")
+    parser.add_argument("--title", default="")
+    parser.add_argument("--project", default="")
+    parser.add_argument("--description", default="")
+
+    args = parser.parse_args(sys.argv[2:])
+    cmd = [AVEN_BIN, "edit", args.ref]
+    if args.status:
+        cmd.extend(["--status", args.status])
+    if args.priority:
+        cmd.extend(["--priority", args.priority])
+    if args.title:
+        cmd.extend(["--title", args.title])
+    if args.project:
+        cmd.extend(["--project", args.project])
+    if args.description:
+        cmd.extend(["--description", args.description])
+
+    code, out, err = run_cmd(cmd)
+    if code == 0:
+        print(json.dumps({"ok": True, "message": out}))
+    else:
+        print(json.dumps({"ok": False, "error": err or out}))
+
+def cmd_delete():
+    if len(sys.argv) < 3:
+        print(json.dumps({"ok": False, "error": "Missing task ref"}))
+        return
+    ref = sys.argv[2]
+    code, out, err = run_cmd([AVEN_BIN, "delete", ref])
+    if code == 0:
+        print(json.dumps({"ok": True, "message": out}))
+    else:
+        print(json.dumps({"ok": False, "error": err or out}))
+
+def cmd_note():
+    if len(sys.argv) < 4:
+        print(json.dumps({"ok": False, "error": "Usage: note <ref> <text>"}))
+        return
+    ref = sys.argv[2]
+    text = sys.argv[3]
+    code, out, err = run_cmd([AVEN_BIN, "note", ref, text])
+    if code == 0:
+        print(json.dumps({"ok": True, "message": out}))
+    else:
+        print(json.dumps({"ok": False, "error": err or out}))
+
+def cmd_sync():
+    code, out, err = run_cmd([AVEN_BIN, "sync"])
+    s_code, s_out, _ = run_cmd([AVEN_BIN, "sync", "status", "--json"])
+    sync_info = {}
+    if s_code == 0 and s_out:
+        try:
+            sync_info = json.loads(s_out)
+        except Exception:
+            pass
+
+    if code == 0:
+        print(json.dumps({"ok": True, "message": out, "sync": sync_info}))
+    else:
+        print(json.dumps({"ok": False, "error": err or out, "sync": sync_info}))
+
+def cmd_show():
+    if len(sys.argv) < 3:
+        print(json.dumps({"ok": False, "error": "Missing task ref"}))
+        return
+    ref = sys.argv[2]
+    code, out, err = run_cmd([AVEN_BIN, "show", ref, "--full", "--json"])
+    if code == 0 and out:
+        try:
+            data = json.loads(out)
+            print(json.dumps({"ok": True, "task": data}))
+            return
+        except Exception:
+            pass
+    print(json.dumps({"ok": False, "error": err or "Failed to load task"}))
+
+def cmd_tui():
+    proj = sys.argv[2] if len(sys.argv) > 2 else ""
+    tui_cmd = f"aven tui -p {proj}" if proj else "aven tui"
+    # Launch in terminal
+    launchers = [
+        ["omarchy-launch-floating-terminal-with-presentation", tui_cmd],
+        ["ghostty", "-e", "aven", "tui"],
+        ["foot", "-e", "aven", "tui"],
+        ["alacritty", "-e", "aven", "tui"],
+    ]
+    for l in launchers:
+        if shutil.which(l[0]):
+            subprocess.Popen(l)
+            print(json.dumps({"ok": True, "launched": l[0]}))
+            return
+    print(json.dumps({"ok": False, "error": "No suitable terminal emulator found"}))
+
+def main():
+    if len(sys.argv) < 2:
+        print(json.dumps({"ok": False, "error": "Missing command"}))
+        return
+
+    sub = sys.argv[1]
+    if sub == "list":
+        cmd_list()
+    elif sub == "add":
+        cmd_add()
+    elif sub == "edit":
+        cmd_edit()
+    elif sub == "delete":
+        cmd_delete()
+    elif sub == "note":
+        cmd_note()
+    elif sub == "sync":
+        cmd_sync()
+    elif sub == "show":
+        cmd_show()
+    elif sub == "tui":
+        cmd_tui()
+    else:
+        print(json.dumps({"ok": False, "error": f"Unknown command: {sub}"}))
+
+if __name__ == "__main__":
+    main()
