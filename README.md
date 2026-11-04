@@ -55,41 +55,19 @@
 
 ## 🚀 Installation
 
-### 1. From the Omarchy Plugin Marketplace (or Git URL)
-
-Run the following command in your terminal:
+Install and place Omaven on your bar in one command:
 
 ```bash
 omarchy plugin add https://github.com/frostmute/omaven --enable
-```
-
-Place the widget in your preferred bar section (for example, the right section):
-
-```bash
 omarchy bar put omaven --section right
 ```
 
-### 2. Configure Hyprland Window Rules & Hotkey
+**That's it!** No configuration files to edit or compositor restarts required.
 
-Add the window rules and hotkey to your `~/.config/hypr/hyprland.lua`:
-
-```lua
--- ~/.config/hypr/omaven.lua
-o.window({ class = "^org.quickshell$", title = "^Omaven — Aven Task Manager$" }, {
-  tag = "+floating-window",
-  size = { 1040, 700 },
-  center = true,
-})
-
--- Global keybind to toggle the Omaven desktop window
-o.bind("SUPER + ALT + A", "Omaven: toggle desktop window", "omarchy-shell shell toggle omaven")
-```
-
-Then reload Hyprland:
-
-```bash
-hyprctl reload
-```
+### Opening Omaven
+- **Quick Popup**: Click the `󰄲` icon in your bar.
+- **Desktop Window**: Middle-click the bar icon, click `↗` inside the popup header, launch **Omaven** from your app launcher (`Super + Space`), or run `omaven` in a terminal.
+- **Hyprland Native**: The desktop window is managed natively by Hyprland—press `Super + T` anytime to toggle between floating and tiling, drag to move, or snap to workspaces.
 
 ---
 
@@ -97,16 +75,20 @@ hyprctl reload
 
 | Shortcut / Action | Context | Description |
 |---|---|---|
-| `Super + Alt + A` | Global | Summon / dismiss the Omaven desktop window |
-| `Super + T` | Window focused | Toggle between floating and tiling in Hyprland |
 | `Left-Click` | Bar icon | Open / close the quick popup panel |
 | `Middle-Click` | Bar icon | Toggle the full desktop window |
 | `Right-Click` | Bar icon | Run `aven sync` in the background |
+| `Super + T` | Window focused | Toggle between floating and tiling (Hyprland native) |
 | `Enter` | Search input | Create task with typed title (if not searching) |
 | `/` | Desktop window | Focus task search field |
 | `a` | Desktop window | Open "+ New Task" dialog |
 | `s` | Desktop window | Sync with remote server |
 | `Esc` | Popup / Window | Close current surface |
+
+*(Optional)* If you want a global keyboard shortcut to toggle the desktop window from anywhere, you can add this line to `~/.config/hypr/bindings.lua`:
+```lua
+o.bind("SUPER + ALT + A", "Omaven: toggle desktop window", "omarchy-shell shell toggle omaven")
+```
 
 ---
 
@@ -115,13 +97,8 @@ hyprctl reload
 To remove Omaven from your Omarchy configuration:
 
 ```bash
-# Disable and remove the plugin
 omarchy plugin disable omaven
 omarchy plugin remove omaven --yes
-
-# Remove the Hyprland binding (if added) from ~/.config/hypr/hyprland.lua
-# Then reload Hyprland:
-hyprctl reload
 ```
 
 ---
