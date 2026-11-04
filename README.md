@@ -114,8 +114,6 @@ omaven/
 ├── AvenClient.qml      Reactive process manager and data store
 ├── bin/
 │   └── aven-backend    Atomic CLI bridge running aven commands
-├── hyprland/
-│   └── omaven.lua      Hyprland floating window rules and hotkey
 ├── assets/
 │   ├── hero.svg        Vector hero artwork
 │   └── preview.png     Rendered 16:9 banner preview
