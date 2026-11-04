@@ -10,7 +10,6 @@
     "bar-widget",
     "panel"
   ],
-  "keepLoaded": true,
   "entryPoints": {
     "barWidget": "BarWidget.qml",
     "panel": "Window.qml"

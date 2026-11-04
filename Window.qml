@@ -96,7 +96,7 @@ Item {
     implicitWidth: 1040
     implicitHeight: 700
     minimumSize: Qt.size(760, 520)
-
+    visible: false
     onVisibleChanged: {
       if (!visible && !root.closingFromHost && root.shell && typeof root.shell.hide === "function") {
         root.shell.hide("omaven")
