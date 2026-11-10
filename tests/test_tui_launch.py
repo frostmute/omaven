@@ -3,6 +3,7 @@ import importlib.machinery
 import importlib.util
 from pathlib import Path
 import shlex
+import subprocess
 import unittest
 from unittest.mock import patch
 
@@ -21,6 +22,12 @@ class TuiLaunchTests(unittest.TestCase):
              patch.object(backend, "AVEN_BIN", "/usr/bin/aven"):
             backend.cmd_tui()
             argv = popen.call_args.args[0]
+            for stream in ("stdin", "stdout", "stderr"):
+                self.assertIs(
+                    popen.call_args.kwargs.get(stream),
+                    subprocess.DEVNULL,
+                    f"{launcher} must redirect {stream}",
+                )
             expected = ["/usr/bin/aven", "tui"] + (["-p", project] if project else [])
             if launcher == "omarchy-launch-floating-terminal-with-presentation":
                 self.assertEqual(shlex.split(argv[1]), expected)

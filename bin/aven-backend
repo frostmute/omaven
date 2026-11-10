@@ -231,7 +231,12 @@ def cmd_tui():
     ]
     for l in launchers:
         if shutil.which(l[0]):
-            subprocess.Popen(l)
+            subprocess.Popen(
+                l,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
             print(json.dumps({"ok": True, "launched": l[0]}))
             return
     print(json.dumps({"ok": False, "error": "No suitable terminal emulator found"}))
