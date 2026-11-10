@@ -2,6 +2,7 @@
 import sys
 import json
 import subprocess
+import shlex
 import shutil
 import os
 
@@ -216,13 +217,17 @@ def cmd_show():
 
 def cmd_tui():
     proj = sys.argv[2] if len(sys.argv) > 2 else ""
-    tui_cmd = f"aven tui -p {proj}" if proj else "aven tui"
-    # Launch in terminal
+    aven_args = [AVEN_BIN, "tui"]
+    if proj:
+        aven_args.extend(["-p", proj])
+
+    # Omarchy's launcher accepts a shell command string; quote each argument.
+    # Other terminal launchers accept argv directly and must not use a shell.
     launchers = [
-        ["omarchy-launch-floating-terminal-with-presentation", tui_cmd],
-        ["ghostty", "-e", "aven", "tui"],
-        ["foot", "-e", "aven", "tui"],
-        ["alacritty", "-e", "aven", "tui"],
+        ["omarchy-launch-floating-terminal-with-presentation", shlex.join(aven_args)],
+        ["ghostty", "-e", *aven_args],
+        ["foot", "-e", *aven_args],
+        ["alacritty", "-e", *aven_args],
     ]
     for l in launchers:
         if shutil.which(l[0]):
