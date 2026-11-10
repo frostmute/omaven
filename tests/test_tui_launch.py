@@ -21,7 +21,7 @@ class TuiLaunchTests(unittest.TestCase):
              patch.object(backend, "AVEN_BIN", "/usr/bin/aven"):
             backend.cmd_tui()
             argv = popen.call_args.args[0]
-            expected = ["/usr/bin/aven", "tui", "-p", project]
+            expected = ["/usr/bin/aven", "tui"] + (["-p", project] if project else [])
             if launcher == "omarchy-launch-floating-terminal-with-presentation":
                 self.assertEqual(shlex.split(argv[1]), expected)
                 self.assertEqual(len(argv), 2)
