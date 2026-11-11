@@ -49,6 +49,7 @@
 - 🛡️ **Security & Performance**:
   - Built strictly on Omarchy's `qs.Commons` and `qs.Ui` design kit.
   - Strict `Text.PlainText` rendering for untrusted user inputs (neutralizing rich text injection).
+  - New task titles and note text travel over process stdin, not command-line arguments.
   - Sub-120ms atomic CLI bridge with local SQLite caching.
 
 ---
@@ -127,7 +128,7 @@ omaven/
 ## 🔧 Prerequisites
 
 - **Omarchy Linux** (Quattro shell with Hyprland).
-- **Aven CLI** installed locally (`aven` binary on `PATH` or in `~/.local/bin/aven`).
+- **Aven CLI 0.1.55 or newer** installed locally (`aven` binary on `PATH` or in `~/.local/bin/aven`). Task creation uses Aven's stdio MCP interface; notes use `aven note --stdin`.
   - Learn more about Aven at [aventasks.dev](https://aventasks.dev).
 
 ---

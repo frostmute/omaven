@@ -8,9 +8,9 @@ import os
 
 AVEN_BIN = shutil.which("aven") or os.path.expanduser("~/.local/bin/aven")
 
-def run_cmd(args, check=False):
+def run_cmd(args, input_text=None):
     try:
-        res = subprocess.run(args, capture_output=True, text=True, timeout=15)
+        res = subprocess.run(args, input=input_text, capture_output=True, text=True, timeout=15)
         return res.returncode, res.stdout.strip(), res.stderr.strip()
     except Exception as e:
         return 1, "", str(e)
@@ -107,31 +107,46 @@ def cmd_list():
     }))
 
 def cmd_add():
-    # Usage: aven-backend add <title> [options]
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("title")
     parser.add_argument("--project", default="")
     parser.add_argument("--status", default="todo")
     parser.add_argument("--priority", default="none")
-    parser.add_argument("--description", default="")
-
     args = parser.parse_args(sys.argv[2:])
-    cmd = [AVEN_BIN, "add", args.title]
-    if args.project:
-        cmd.extend(["--project", args.project])
-    if args.status:
-        cmd.extend(["--status", args.status])
-    if args.priority and args.priority != "none":
-        cmd.extend(["--priority", args.priority])
-    if args.description:
-        cmd.extend(["--description", args.description])
+    try:
+        title = json.loads(sys.stdin.readline())
+        if not isinstance(title, str):
+            raise ValueError("Title must be a string")
+    except (ValueError, TypeError) as e:
+        print(json.dumps({"ok": False, "error": str(e)}))
+        return
 
-    code, out, err = run_cmd(cmd)
+    fields = {"title": title, "status": args.status, "priority": args.priority}
+    if args.project:
+        fields["project"] = args.project
+    requests = [
+        {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
+            "protocolVersion": "2025-03-26", "capabilities": {},
+            "clientInfo": {"name": "omaven", "version": "1"}
+        }},
+        {"jsonrpc": "2.0", "method": "notifications/initialized"},
+        {"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {
+            "name": "create_task", "arguments": fields
+        }},
+    ]
+    code, out, err = run_cmd([AVEN_BIN, "mcp"], "".join(json.dumps(r) + "\n" for r in requests))
     if code == 0:
-        print(json.dumps({"ok": True, "message": out}))
-    else:
-        print(json.dumps({"ok": False, "error": err or out}))
+        try:
+            responses = (json.loads(line) for line in out.splitlines())
+            response = next(item for item in responses if item.get("id") == 2)
+            result = response.get("result", {})
+            if "error" in response or result.get("isError") or "content" not in result:
+                raise ValueError(str(response.get("error") or result))
+            print(json.dumps({"ok": True, "message": result["content"]}))
+            return
+        except (ValueError, StopIteration) as e:
+            err = str(e) or "Invalid response from Aven"
+    print(json.dumps({"ok": False, "error": err or "Failed to create task"}))
 
 def cmd_edit():
     import argparse
@@ -139,9 +154,7 @@ def cmd_edit():
     parser.add_argument("ref")
     parser.add_argument("--status", default="")
     parser.add_argument("--priority", default="")
-    parser.add_argument("--title", default="")
     parser.add_argument("--project", default="")
-    parser.add_argument("--description", default="")
 
     args = parser.parse_args(sys.argv[2:])
     cmd = [AVEN_BIN, "edit", args.ref]
@@ -149,12 +162,8 @@ def cmd_edit():
         cmd.extend(["--status", args.status])
     if args.priority:
         cmd.extend(["--priority", args.priority])
-    if args.title:
-        cmd.extend(["--title", args.title])
     if args.project:
         cmd.extend(["--project", args.project])
-    if args.description:
-        cmd.extend(["--description", args.description])
 
     code, out, err = run_cmd(cmd)
     if code == 0:
@@ -174,12 +183,17 @@ def cmd_delete():
         print(json.dumps({"ok": False, "error": err or out}))
 
 def cmd_note():
-    if len(sys.argv) < 4:
-        print(json.dumps({"ok": False, "error": "Usage: note <ref> <text>"}))
+    if len(sys.argv) != 3:
+        print(json.dumps({"ok": False, "error": "Usage: note <ref>"}))
         return
-    ref = sys.argv[2]
-    text = sys.argv[3]
-    code, out, err = run_cmd([AVEN_BIN, "note", ref, text])
+    try:
+        text = json.loads(sys.stdin.readline())
+        if not isinstance(text, str):
+            raise ValueError("Note must be a string")
+    except (ValueError, TypeError) as e:
+        print(json.dumps({"ok": False, "error": str(e)}))
+        return
+    code, out, err = run_cmd([AVEN_BIN, "note", sys.argv[2], "--stdin"], text)
     if code == 0:
         print(json.dumps({"ok": True, "message": out}))
     else:

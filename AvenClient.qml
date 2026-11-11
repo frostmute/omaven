@@ -95,13 +95,14 @@ Item {
   }
 
   function addTask(title, project, priority, status, cb) {
-    var args = [root.backendBin, "add", title]
+    var args = [root.backendBin, "add"]
     if (project) args.push("--project", project)
     if (priority && priority !== "none") args.push("--priority", priority)
     if (status) args.push("--status", status)
 
     var proc = actionProcComponent.createObject(root, {
       commandArgs: args,
+      input: title,
       callback: cb
     })
     proc.start()
@@ -117,7 +118,8 @@ Item {
 
   function addNote(ref, text, cb) {
     var proc = actionProcComponent.createObject(root, {
-      commandArgs: [root.backendBin, "note", ref, text],
+      commandArgs: [root.backendBin, "note", ref],
+      input: text,
       callback: cb
     })
     proc.start()
@@ -147,8 +149,13 @@ Item {
       id: ap
       property var commandArgs: []
       property var callback: null
+      property var input: null
 
       command: commandArgs
+      stdinEnabled: input !== null
+      onStarted: {
+        if (input !== null) ap.write(JSON.stringify(input) + "\n")
+      }
       stdout: StdioCollector {
         id: apStdout
         waitForEnd: true
